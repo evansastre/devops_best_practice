@@ -1,0 +1,29 @@
+{{- if eq .Values.product "myproduct" }}
+apiVersion: v1
+items:
+{{- range .Values.logConfig }}
+{{ $logBody := . }}
+{{ $labels := $logBody.label }}
+- apiVersion: XXXX/v1
+  kind: LogConfig
+  metadata:
+    name: {{ default "foo" $logBody.name }}
+  spec:
+    clsDetail:
+      logFormat: default
+      logType: type1
+      region: {{  $.Values.logmasterregion }}
+      topicId: {{ $logBody.topicID }}
+    inputDetail:
+      containerStdout:
+        container: {{ default "foo" $logBody.name }}				
+        includeLabels:
+          {{ $labels }}
+        nsLabelSelector: log-collect=true	 # namespace selector 
+      type: container_stdout
+{{- end }}
+kind: List
+metadata:
+  resourceVersion: ""
+  selfLink: ""
+{{- end }}

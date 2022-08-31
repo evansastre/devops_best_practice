@@ -1,0 +1,15 @@
+- product: "myproduct"
+  addon: log-config
+  region: bj
+  logmasterregion: ap-guangzhou
+  clusterID: cls-XXX
+  shortRegion: bj
+  logConfig_component1_name: component1
+  logConfig_component1_topicID: xxx-xxxx-xxxx-xxx-xxxx
+  logConfig_component1_label: "app: component1" 
+  logConfig_component2_name: component2
+  logConfig_component2_topicID: xxx-xxxx-xxxx-xxx-xxxx
+  logConfig_component2_label: "app: component2"
+  logConfig_component3_name: component3
+  logConfig_component3_topicID: xxx-xxxx-xxxx-xxx-xxxx
+  logConfig_component3_label: "app: component3"
