@@ -1,0 +1,18 @@
+{{- if eq (.Values.server.vaultEtcdTlsEnable | toString) "true" }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-etcd-tls
+  namespace: vault
+data:
+  {{- if .Values.server.clientCrt}}
+  client.crt: {{ .Values.server.clientCrt }}
+  {{- end}}
+  {{- if .Values.server.clientKey}}
+  client.key: {{ .Values.server.clientKey }}
+  {{- end}}
+  {{- if .Values.server.rootCACrt}}
+  rootCA.crt: {{ .Values.server.rootCACrt }}
+  {{- end}}
+    
+ {{- end }}

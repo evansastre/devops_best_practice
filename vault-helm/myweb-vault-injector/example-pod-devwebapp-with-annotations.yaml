@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+   name: devwebapp-with-annotations-deployment
+   namespace: vault
+spec:
+   replicas: 1
+   selector:
+      matchLabels:
+         app: devwebapp-with-annotations
+   template:
+      metadata:
+         name: devwebapp-with-annotations
+         labels:
+            app: devwebapp-with-annotations
+         annotations:
+            vault.hashicorp.com/agent-inject: 'true'
+            vault.hashicorp.com/agent-inject-status: 'update'
+            vault.hashicorp.com/role: 'bj'
+            # vault.hashicorp.com/agent-extra-secret: 'vault-ca'
+            vault.hashicorp.com/tls-secret: 'vault-ca' #used by vault-agent-init container
+            vault.hashicorp.com/ca-cert: '/vault/tls/rootca.crt' #used by vault-agent-init container
+            # vault.hashicorp.com/agent-inject-secret-kv_credentials: 'secret/data/devwebapp/config' #/vault/secrets/kv_credentials
+            vault.hashicorp.com/agent-inject-secret-bus_component1: 'database/static-creds/cdb-bus_component1-bj' #/vault/secrets/bus_component1
+            vault.hashicorp.com/agent-inject-template-bus_component1: |
+                  {{- with secret "database/static-creds/cdb-bus_component1-bj" -}}
+                      mysql -h 9.164.182.204 -P3306 -u'{{ .Data.username }}' -p'{{ .Data.password }}' -e "show grants"
+                  {{- end -}}
+      spec:
+        serviceAccountName: vault-k8s-auth
+        containers:
+            - name: app
+              image: burtlo/devwebapp-ruby:k8s

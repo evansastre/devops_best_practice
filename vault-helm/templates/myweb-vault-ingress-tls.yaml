@@ -1,0 +1,18 @@
+{{- if eq (.Values.server.vaultIngressTlsEnable | toString) "true" }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: vault-ingress-tls
+  namespace: vault
+data:
+  {{- if .Values.server.vaultCrt}}
+  client.crt: {{ .Values.server.vaultCrt }}
+  {{- end}}
+  {{- if .Values.server.vaultKey}}
+  client.key: {{ .Values.server.vaultKey }}
+  {{- end}}
+  {{- if .Values.server.vaultCACrt}}
+  rootCA.crt: {{ .Values.server.vaultCACrt }}
+  {{- end}}
+    
+ {{- end }}
