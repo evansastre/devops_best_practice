@@ -1,0 +1,58 @@
+helmDefaults:
+  historyMax: 10
+  timeout: 120
+releases:
+  - name: {{ requiredEnv "SERVICE_NAME" }}
+    namespace: eks-{{ requiredEnv "REGION_ENV" }}
+    #namespace: eks
+    chart: ./{{ requiredEnv "SERVICE_NAME" }}
+    # 生效优先级： 组件subregion values > 组件region values > 组件values >common_config region values > common_config values > global-config.yaml
+    values:
+      - ./common_secret_config/global-config.yaml
+      - ./common_secret_config/{{ requiredEnv "REGION_ENV" }}-values.yaml
+      - ./common_config/values.yaml
+      - ./common_config/{{ requiredEnv "REGION_ENV" }}/values.yaml
+      - ./{{ requiredEnv "SERVICE_NAME" }}/values.yaml
+      - ./{{ requiredEnv "SERVICE_NAME" }}/config/{{ requiredEnv "REGION_ENV" }}/values.yaml
+      - ./{{ requiredEnv "SERVICE_NAME" }}/config/{{ requiredEnv "REGION_ENV" }}/{{ requiredEnv "SUBREGION_ENV" }}/values.yaml
+    set:
+      - name: region
+        value: {{ requiredEnv "REGION_ENV" }}
+environments:
+  cq-test:
+  sh-v1:
+  gz-v1:
+  shjr-v1:
+  szjr-v1:
+  hk-v1:
+  sg-v1:
+  usw-v1:
+  in-v1:
+  use-v1:
+  nj-v1:
+  tsn-v1:
+  szx-v1:
+  bj-v1:
+  cd-v1:
+  ca-v1:
+  de-v1:
+  kr-v1:
+  cq-v1:
+  th-v1:
+  ru-v1:
+  jp-v1:
+  tpe-v1:
+  bjjr-v1:
+  jkt-v1:
+  jnec-v1:
+  hzec-v1:
+  whec-v1:
+  csec-v1:
+  sheec-v1:
+  fzec-v1:
+  sjwec-v1:
+  hfeec-v1:
+  sao-v1:
+  xiyec-v1:
+  bjtest-v1:
+  shadc-v1:

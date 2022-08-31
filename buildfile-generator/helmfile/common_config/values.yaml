@@ -1,0 +1,9 @@
+
+logConfig:
+  topicID:
+    component1: xxx-xxx-xxx-xxx-xx
+    component1: xxx-xxx-xxx-xxx-xx
+    
+  annotations:
+    component1: {}
+    component2: {}

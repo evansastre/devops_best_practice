@@ -1,0 +1,142 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: main-pipeline-template
+data:
+  admin.pem: |-
+  
+version: 1.0.0
+env:
+  SERVICE_NAME:
+    value: EKS
+    type: string
+    require: true
+    readonly: true
+  domestic_bjshgz: 
+    value: >-
+      {{ range $key, $value := .Values.App.DEPLOY_GROUPS.domestic_bjshgz }}{{ $key }}-v1,{{- end }}
+    readonly: true
+  domestic_general: 
+    value: >-
+      {{ range $key, $value := .Values.App.DEPLOY_GROUPS.domestic_general }}{{ $key }}-v1,{{- end }}
+    readonly: true
+  internation: 
+    value: >-
+      {{ range $key, $value := .Values.App.DEPLOY_GROUPS.internation }}{{ $key }}-v1,{{- end }}
+    readonly: true
+  ec:   
+    value: >-
+      {{ range $key, $value := .Values.App.DEPLOY_GROUPS.ec }}{{ $key }}-v1,{{- end }}
+    readonly: true
+  customize: 
+    value: 'ca-v1'
+    type: multi-select
+    desc: Customize the first gray area
+    option: >-
+      {{ range $key, $value := .Values.App.DEPLOY_REGIONS }}{{ $value }}-v1;{{- end }}-all-;
+  GRAYSCALE_REGIONS:
+    value: 'customize'
+    type: multi-select
+    require: true
+    desc: Select the area to trigger grayscale
+    option: >-
+      {{ range .Values.App.GRAYSCALE_REGIONS }}{{.grey_region}};{{- end }}
+  RUN_QA_TEST:
+    value: 'true'
+    type: select
+    desc: Whether to trigger automated tests for verification
+    option: true;false
+  AUTO_APPROVE_ALL:
+    value: 'false'
+    type: select
+    desc: Whether to automatically agree to component pipeline execution
+    option: true;false
+  GRAYSCALE_COMPONENTS:
+    value: ''
+    type: multi-select
+    require: true
+    desc: Select the component pipeline to trigger grayscale
+    option: >-
+      {{ range $key, $value := .Values.App.MyServices }}{{ $key }};{{- end }}
+
+stages:
+  - prompt:
+    - msg: check
+      detail: |
+        The implementation of this grayscale pipeline is confirmed by the auditor to prevent unauthorized personnel from executing it
+      to:
+        - $QCI_JOB_ADMIN
+        - user1
+      notifications:
+        channel: ENWECHAT_GROUP
+        enwechat_group: "xxxxxxx"
+      env: {}
+
+  {{- range .Values.App.GRAYSCALE_REGIONS }}
+  {{ $grey_region := .grey_region   }}
+
+  - stage:  grayscale-release-{{ .describe }}
+    tasks:
+    {{- range $key, $value := $.Values.App.MyServices }}
+      - task: {{ $key }}
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '{{$value}}'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=${{ $grey_region }}
+              {{- if  eq  $grey_region   "customize" }}
+                - AUTO_APPROVE_ALL=false
+              {{- else}}
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              {{- end}}
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*{{$key}}.*/"
+    {{- end}}
+    if: $GRAYSCALE_REGIONS ~= "/.*{{ .grey_region }}.*/"
+
+
+  - stage:  Grayscale-test-{{ .describe }}
+    tasks:
+  {{- range $key, $value := $.Values.App.MyServices }}
+      - task: {{ $key }}
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP={{ $key }}
+              {{- if  eq  $grey_region   "customize" }}
+                - REGION=${{ $grey_region }}
+              {{- else if  eq  $grey_region   "internation" }}
+                - STAGE=internation
+              {{- else if  eq  $grey_region   "domestic_general" }}
+                - STAGE=domestic_general
+              {{- else if  eq  $grey_region   "domestic_bjshgz" }}
+                - STAGE=domestic_bjshgz
+              {{- end}}
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*{{$key}}.*/"
+  {{- end}}
+    if: $RUN_QA_TEST=="true" and $GRAYSCALE_REGIONS ~= "/.*{{ .grey_region }}.*/"
+    
+{{- end}}
+
+finally:
+  all:
+    cmds:
+    - plugin: message_wework_single
+      params:
+        content: "Service: $SERVICE_NAME $DEPLOY_ENV FinishNotification\nTrigger：${QCI_TRIGGER}\nServiceList： ${SERVICE_NAME}\nEnv： ${DEPLOY_ENV}\nChangeContent： ${CHANGE_DESC}\nPipelineDesc： ${QCI_JOB_URL}\nTime: $(date +\"%Y%m%dT%H:%M:%S\")"
+        to: "$QCI_TRIGGER;"
+        c_type: "text"
+
+worker:
+  language: qci_common
+  label: PUBLIC_IDC
+  tools: []
+code_checkout_type: CHECKOUT_ALL

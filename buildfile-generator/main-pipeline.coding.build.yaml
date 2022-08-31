@@ -1,0 +1,488 @@
+version: 1.0.0
+env:
+  SERVICE_NAME:
+    value: EKS
+    type: string
+    require: true
+    readonly: true
+  domestic_bjshgz: 
+    value: >-
+      bj-v1,gz-v1,sh-v1,
+    readonly: true
+  domestic_general: 
+    value: >-
+      cd-v1,nj-v1,
+    readonly: true
+  internation: 
+    value: >-
+      use-v1,usw-v1,
+    readonly: true
+  ec:   
+    value: >-
+      
+    readonly: true
+  customize: 
+    value: 'ca-v1'
+    type: multi-select
+    desc: Customize the first gray area
+    option: >-
+      sh-v1;gz-v1;bj-v1;nj-v1;cd-v1;sg-v1;usw-v1;use-v1;de-v1;-all-;
+  GRAYSCALE_REGIONS:
+    value: 'customize'
+    type: multi-select
+    require: true
+    desc: Select the area to trigger grayscale
+    option: >-
+      customize;region1;internation;domestic_general;domestic_bjshgz;
+  RUN_QA_TEST:
+    value: 'true'
+    type: select
+    desc: Whether to trigger automated tests for verification
+    option: true;false
+  AUTO_APPROVE_ALL:
+    value: 'false'
+    type: select
+    desc: Whether to automatically agree to component pipeline execution
+    option: true;false
+  GRAYSCALE_COMPONENTS:
+    value: ''
+    type: multi-select
+    require: true
+    desc: Select the component pipeline to trigger grayscale
+    option: >-
+      component1;component2;component3;
+
+stages:
+  - prompt:
+    - msg: check
+      detail: |
+        The implementation of this grayscale pipeline is confirmed by the auditor to prevent unauthorized personnel from executing it
+      to:
+        - $QCI_JOB_ADMIN
+        - user1
+      notifications:
+        channel: ENWECHAT_GROUP
+        enwechat_group: "xxxxxxx"
+      env: {}
+  
+
+  - stage:  grayscale-release-自定义地域
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '1111'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$customize
+                - AUTO_APPROVE_ALL=false
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '2222'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$customize
+                - AUTO_APPROVE_ALL=false
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '3333'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$customize
+                - AUTO_APPROVE_ALL=false
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $GRAYSCALE_REGIONS ~= "/.*customize.*/"
+
+
+  - stage:  Grayscale-test-自定义地域
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component1
+                - REGION=$customize
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component2
+                - REGION=$customize
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component3
+                - REGION=$customize
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $RUN_QA_TEST=="true" and $GRAYSCALE_REGIONS ~= "/.*customize.*/"
+  
+
+  - stage:  grayscale-release-region1
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '1111'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$region1
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '2222'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$region1
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '3333'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$region1
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $GRAYSCALE_REGIONS ~= "/.*region1.*/"
+
+
+  - stage:  Grayscale-test-region1
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component1
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component2
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component3
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $RUN_QA_TEST=="true" and $GRAYSCALE_REGIONS ~= "/.*region1.*/"
+  
+
+  - stage:  grayscale-release-internation
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '1111'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$internation
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '2222'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$internation
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '3333'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$internation
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $GRAYSCALE_REGIONS ~= "/.*internation.*/"
+
+
+  - stage:  Grayscale-test-internation
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component1
+                - STAGE=internation
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component2
+                - STAGE=internation
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component3
+                - STAGE=internation
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $RUN_QA_TEST=="true" and $GRAYSCALE_REGIONS ~= "/.*internation.*/"
+  
+
+  - stage:  grayscale-release-domestic_general
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '1111'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$domestic_general
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '2222'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$domestic_general
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '3333'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$domestic_general
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $GRAYSCALE_REGIONS ~= "/.*domestic_general.*/"
+
+
+  - stage:  Grayscale-test-domestic_general
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component1
+                - STAGE=domestic_general
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component2
+                - STAGE=domestic_general
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component3
+                - STAGE=domestic_general
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $RUN_QA_TEST=="true" and $GRAYSCALE_REGIONS ~= "/.*domestic_general.*/"
+  
+
+  - stage:  grayscale-release-domestic_bjshgz
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '1111'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$domestic_bjshgz
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '2222'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$domestic_bjshgz
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: '3333'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - DEPLOY_ENV=$domestic_bjshgz
+                - AUTO_APPROVE_ALL=$AUTO_APPROVE_ALL
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $GRAYSCALE_REGIONS ~= "/.*domestic_bjshgz.*/"
+
+
+  - stage:  Grayscale-test-domestic_bjshgz
+    tasks:
+      - task: component1
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component1
+                - STAGE=domestic_bjshgz
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component1.*/"
+      - task: component2
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component2
+                - STAGE=domestic_bjshgz
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component2.*/"
+      - task: component3
+        cmds:
+          - plugin: pipeline_start
+            params:
+              pipeline: 'testpipelineId'
+              branch:  $QCI_REPO_BRANCH
+              envs:
+                - COMP=component3
+                - STAGE=domestic_bjshgz
+              sync: true
+              trigger_base: branch
+        if: $GRAYSCALE_COMPONENTS ~= "/.*component3.*/"
+    if: $RUN_QA_TEST=="true" and $GRAYSCALE_REGIONS ~= "/.*domestic_bjshgz.*/"
+
+finally:
+  all:
+    cmds:
+    - plugin: message_wework_single
+      params:
+        content: "Service: $SERVICE_NAME $DEPLOY_ENV FinishNotification\nTrigger：${QCI_TRIGGER}\nServiceList： ${SERVICE_NAME}\nEnv： ${DEPLOY_ENV}\nChangeContent： ${CHANGE_DESC}\nPipelineDesc： ${QCI_JOB_URL}\nTime: $(date +\"%Y%m%dT%H:%M:%S\")"
+        to: "$QCI_TRIGGER;"
+        c_type: "text"
+
+worker:
+  language: qci_common
+  label: PUBLIC_IDC
+  tools: []
+code_checkout_type: CHECKOUT_ALL

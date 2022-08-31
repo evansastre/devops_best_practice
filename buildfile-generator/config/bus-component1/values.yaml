@@ -1,0 +1,4 @@
+App:
+  PRODUCT_NAME: eks
+  SERVICE_NAME: component1
+  Check_Workload_Status: true

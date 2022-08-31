@@ -1,0 +1,5 @@
+App:
+  PRODUCT_NAME: eks
+  SERVICE_NAME: component2
+  QA_TEST: Type1
+  Check_Workload_Status: true

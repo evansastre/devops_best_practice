@@ -1,0 +1,255 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: buildfile-generator
+data:
+  admin.pem: |-
+  
+version: 2
+env:
+  PRODUCT_NAME:
+    value: {{ .Values.App.PRODUCT_NAME }}
+    type: string
+    require: true
+    readonly: true
+  SERVICE_NAME:
+    value: {{ .Values.App.SERVICE_NAME }}
+    type: string
+    require: true
+    readonly: true
+  DEPLOY_ENV:
+    value: ''
+    type: multi-select
+    require: true
+    option: >-
+      {{ range $key, $value := .Values.App.DEPLOY_GROUPS }}-{{ $key }}-;{{- end }}{{- range $key := .Values.App.DEPLOY_REGIONS }}{{ $key }}-v1;{{- end }}-all-;
+  AUTO_APPROVE_ALL:
+    value: 'false'
+    type: select
+    desc: Whether to automatically agree to component pipeline execution
+    option: true;false
+stages:
+  - stage: preparation
+    tasks:
+      - task: Prepare Env
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - echo $TAG
+                - echo $SERVICE_NAME
+      - cmds:
+        - plugin: artifacts_config_create
+          params:
+            path: keelsoncluster-kubeconfig
+          label: Configure rendering
+        task: Configure rendering kubeconfig
+      - task: Configure rendering common_config/
+        cmds:
+          - plugin: artifacts_config_create
+            params:
+              path: common_config/
+              output: ./helmfile/common_secret_config/
+  - stage: Helmfile Lint
+    tasks:
+      {{- range $key, $value := .Values.App.DEPLOY_REGIONS }}
+      - task: {{ $value }}
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV={{ $value }}-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*{{ $value }}-v1.*|.*-all-*{{- range $k, $v := $.Values.App.DEPLOY_GROUPS }}{{- range $regionkey, $regionvalue := $v }}{{- if eq $value $regionkey }}|.*-{{ $k }}-.*{{- end}}{{- end}}{{- end}}/"
+      {{- end }}
+  - stage: Helmfile Diff
+    tasks:
+      {{- range $key, $value := .Values.App.DEPLOY_REGIONS }}
+      - task: {{ $value }}
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV={{$value}}-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*{{ $value }}-v1.*|.*-all-*{{- range $k, $v := $.Values.App.DEPLOY_GROUPS }}{{- range $regionkey, $regionvalue := $v }}{{- if eq $value $regionkey }}|.*-{{ $k }}-.*{{- end}}{{- end}}{{- end}}/"
+        artifacts:
+          - result/*
+      {{- end }}
+      
+  - prompt:
+      - msg: check
+        detail: |
+          请检查${DEPLOY_ENV}环境是否正常, 并在构建产物中下载
+          ${QCI_JOB_NAME}-${DEPLOY_ENV}-diff.html查看差异是否符合预期
+          ${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml 为完整制品文件
+        to:
+          - $QCI_JOB_ADMIN
+          - gordondeng
+          - yuehuazhang
+          - evanshuang
+          - keeganliu
+        notifications:
+          channel: "ENWECHAT_GROUP;ENWECHAT"
+          enwechat_group: ww1393043705
+          user: $QCI_TRIGGER
+        env: {}
+        if: $AUTO_APPROVE_ALL=="false"
+  - stage: 新阶段
+    tasks:
+      - task: commit callback
+        cmds:
+          - 'curl -v -H "Authorization: Token $CODING_CI_API_TOKEN" http://tencent.coding.oa.com/api/qci/rest-api/pipeline/$QCI_JOB_ID/totalresult/$QCI_BUILD_ID/comment -d "text=\"region=${DEPLOY_ENV//;/ } commit_message=$QCI_COMMIT_MESSAGE\" " -d "text_mode=\"write\" "'
+  - stage: Deploy
+    tasks:
+      {{- $serviceName := .Values.App.SERVICE_NAME }}
+      {{- range $key, $value := .Values.App.DEPLOY_REGIONS }}
+      {{- if not ( and ( eq $value  "shadc")  ( or ( eq $serviceName "eks-imc-server")  ( eq $serviceName "eks-eksci")))  }}
+      - task: {{ $value }}
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV={{ $value }}-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*{{ $value }}-v1.*|.*-all-*{{- range $k, $v := $.Values.App.DEPLOY_GROUPS }}{{- range $regionkey, $regionvalue := $v }}{{- if eq $value $regionkey }}|.*-{{ $k }}-.*{{- end}}{{- end}}{{- end}}/"
+      {{- end }}
+      {{- end }}
+  
+  {{- if  .Values.App.Check_Workload_Status | default false }} 
+  - stage: Check Workload Status
+    ignore: true
+    tasks:
+      {{- $serviceName := .Values.App.SERVICE_NAME }}
+      {{- range $key, $value := .Values.App.DEPLOY_REGIONS }}
+      {{- if not ( and ( eq $value  "shadc")  ( or ( eq $serviceName "eks-imc-server")  ( eq $serviceName "eks-eksci")))  }}
+      - task: {{ $value }}
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV={{ $value }}-v1
+                - export REGION_ENV={{ $value }}
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                {{- if eq $serviceName "eks-server" }}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status sts/eks-server -n ${PRODUCT_NAME}-${REGION_ENV}  --timeout 600s 
+                {{- else }}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s 
+                {{- end }}
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-{{ $value }}'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region={{ $value }}'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*{{ $value }}-v1.*|.*-all-*{{- range $k, $v := $.Values.App.DEPLOY_GROUPS }}{{- range $regionkey, $regionvalue := $v }}{{- if eq $value $regionkey }}|.*-{{ $k }}-.*{{- end}}{{- end}}{{- end}}/"
+      {{- end }}
+      {{- end }}
+  {{- end }}
+
+
+
+  # {{- if  .Values.App.QA_TEST | default false }}  
+  # - stage: 自动化测试
+  #   tasks:
+  #     {{- $serviceName := .Values.App.SERVICE_NAME }}
+  #     {{- range $key, $value := .Values.App.DEPLOY_REGIONS }}
+  #     {{- if not ( and ( eq $value  "shadc")  ( or ( eq $serviceName "eks-imc-server")  ( eq $serviceName "eks-eksci")))  }}
+  #     {{- if and (eq $.Values.App.QA_TEST "EKS-release-regression-create-cluster")   ( ne  "jnec" $value )  ( ne  "tsn" $value ) ( ne  "szx" $value ) ( ne  "szjr" $value )}}  
+  #       {{- if or (eq $value "ca") (eq $value "bj") (eq $value "sh") (eq $value "gz") }}   
+  #     - task: {{ $value }}-EKS-发布回归
+  #       cmds:
+  #         - plugin: qtap-task
+  #           params:
+  #             #这种测试类型为EKS-发布回归 只在ca,bj,sh,gz环境执行，ca作为第一个灰度区域
+  #             task: '51196'  
+  #             passrate: '0.9'
+  #             user_env_set: REGION={{ $value }}
+  #       if: $RUN_QA_TEST=="true" and $DEPLOY_ENV ~= "/.*{{ $value }}-v1.*|.*-all-*{{- range $k, $v := $.Values.App.DEPLOY_GROUPS }}{{- range $regionkey, $regionvalue := $v }}{{- if eq $value $regionkey }}|.*-{{ $k }}-.*{{- end}}{{- end}}{{- end}}/"
+  #       {{- else}}
+  #     - task: {{ $value }}-EKS-发布回归-创建集群
+  #       cmds:
+  #         - plugin: qtap-task
+  #           params:
+  #             #这种测试类型为EKS-发布回归-创建集群
+  #             task: '56790' 
+  #             passrate: '0.99'
+  #             {{- if  eq $value "shadc" }}
+  #             user_env_set: "REGION={{ $value }} \n QC_EKS_CBS_ROOT=CLOUD_SSD"
+  #             {{- else}}
+  #             user_env_set: REGION={{ $value }}
+  #             {{- end}}
+  #       if: $RUN_QA_TEST=="true" and $DEPLOY_ENV ~= "/.*{{ $value }}-v1.*|.*-all-*{{- range $k, $v := $.Values.App.DEPLOY_GROUPS }}{{- range $regionkey, $regionvalue := $v }}{{- if eq $value $regionkey }}|.*-{{ $k }}-.*{{- end}}{{- end}}{{- end}}/"
+  #       {{- end}}
+  #     {{- else if and ( eq $.Values.App.QA_TEST "eksci-release-regression")  ( not (contains  "ec" $value) ) ( ne  "tpe" $value )  ( ne  "sao" $value )  ( ne  "jnec" $value )  ( ne  "tsn" $value ) ( ne  "szx" $value )  }}
+  #       {{- if or (eq $value "ca") (eq $value "bj") (eq $value "sh") (eq $value "gz") }}     
+  #     - task: {{ $value }}-eksci-全量
+  #       cmds:
+  #         - plugin: qtap-task
+  #           params:
+  #             #这种测试类型为eksci-全量 只在ca,bj,sh,gz环境执行，ca作为第一个灰度区域
+  #             task: '67911'  
+  #             passrate: '0.99'
+  #             user_env_set: REGION={{ $value }}
+  #       if: $RUN_QA_TEST=="true" and $DEPLOY_ENV ~= "/.*{{ $value }}-v1.*|.*-all-*{{- range $k, $v := $.Values.App.DEPLOY_GROUPS }}{{- range $regionkey, $regionvalue := $v }}{{- if eq $value $regionkey }}|.*-{{ $k }}-.*{{- end}}{{- end}}{{- end}}/"
+  #       {{- else}}
+  #     - task: {{ $value }}-eksci-发布回归
+  #       cmds:
+  #         - plugin: qtap-task
+  #           params:
+  #            #这种测试类型为eksci-发布回归
+  #             task: '83832'   
+  #             passrate: '0.99'
+  #             {{- if  eq $value "shadc" }}
+  #             user_env_set: "REGION={{ $value }} \n QC_EKS_CBS_ROOT=CLOUD_SSD"
+  #             {{- else}}
+  #             user_env_set: REGION={{ $value }}
+  #             {{- end}}
+  #       if: $RUN_QA_TEST=="true" and $DEPLOY_ENV ~= "/.*{{ $value }}-v1.*|.*-all-*{{- range $k, $v := $.Values.App.DEPLOY_GROUPS }}{{- range $regionkey, $regionvalue := $v }}{{- if eq $value $regionkey }}|.*-{{ $k }}-.*{{- end}}{{- end}}{{- end}}/"
+  #       {{- end }}
+  #     {{- end }}
+  #     {{- end }}
+  #     {{- end }}
+
+  # {{- end }}
+
+
+finally:
+  all:
+    cmds:
+    - plugin: message_wework_single
+      params:
+        content: "服务: $SERVICE_NAME $DEPLOY_ENV 发布完成通知\n发起人：${QCI_TRIGGER}\n组件列表： ${SERVICE_NAME}\n部署环境： ${DEPLOY_ENV}\n变更内容： ${CHANGE_DESC}\n流水线详情： ${QCI_JOB_URL}\n部署时间: $(date +\"%Y%m%dT%H:%M:%S\")"
+        to: "$QCI_TRIGGER;"
+        c_type: "text"
+
+worker:
+  language: qci_common
+  label: PUBLIC_IDC
+  tools: []
+code_checkout_type: CHECKOUT_ALL

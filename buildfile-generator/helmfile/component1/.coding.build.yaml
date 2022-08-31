@@ -1,0 +1,701 @@
+version: 2
+env:
+  PRODUCT_NAME:
+    value: eks
+    type: string
+    require: true
+    readonly: true
+  SERVICE_NAME:
+    value: component1
+    type: string
+    require: true
+    readonly: true
+  DEPLOY_ENV:
+    value: ''
+    type: multi-select
+    require: true
+    option: >-
+      -all_is_deploy-;-domestic_bjshgz-;-domestic_general-;-internation-;-sgde-;sh-v1;gz-v1;bj-v1;nj-v1;cd-v1;sg-v1;usw-v1;use-v1;de-v1;-all-;
+  AUTO_APPROVE_ALL:
+    value: 'false'
+    type: select
+    desc: Whether to automatically agree to component pipeline execution
+    option: true;false
+stages:
+  - stage: preparation
+    tasks:
+      - task: Prepare Env
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - echo $TAG
+                - echo $SERVICE_NAME
+      - cmds:
+        - plugin: artifacts_config_create
+          params:
+            path: keelsoncluster-kubeconfig
+          label: Configure rendering
+        task: Configure rendering kubeconfig
+      - task: Configure rendering common_config/
+        cmds:
+          - plugin: artifacts_config_create
+            params:
+              path: common_config/
+              output: ./helmfile/common_secret_config/
+  - stage: Helmfile Lint
+    tasks:
+      - task: sh
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=sh-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*sh-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: gz
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=gz-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*gz-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: bj
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=bj-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*bj-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: nj
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=nj-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*nj-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_general-.*/"
+      - task: cd
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=cd-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*cd-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_general-.*/"
+      - task: sg
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=sg-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*sg-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-sgde-.*/"
+      - task: usw
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=usw-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*usw-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-internation-.*/"
+      - task: use
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=use-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*use-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-internation-.*/"
+      - task: de
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=de-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}`  helmfile
+                  -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml lint
+        if: $DEPLOY_ENV ~= "/.*de-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-sgde-.*/"
+  - stage: Helmfile Diff
+    tasks:
+      - task: sh
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=sh-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*sh-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+        artifacts:
+          - result/*
+      - task: gz
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=gz-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*gz-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+        artifacts:
+          - result/*
+      - task: bj
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=bj-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*bj-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+        artifacts:
+          - result/*
+      - task: nj
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=nj-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*nj-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_general-.*/"
+        artifacts:
+          - result/*
+      - task: cd
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=cd-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*cd-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_general-.*/"
+        artifacts:
+          - result/*
+      - task: sg
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=sg-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*sg-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-sgde-.*/"
+        artifacts:
+          - result/*
+      - task: usw
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=usw-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*usw-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-internation-.*/"
+        artifacts:
+          - result/*
+      - task: use
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=use-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*use-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-internation-.*/"
+        artifacts:
+          - result/*
+      - task: de
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=de-v1
+                - mkdir -p result
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml diff > result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml
+                - cat result/yaml_diff_${DEPLOY_ENV}.yaml | ansi2html > result/yaml_diff_${DEPLOY_ENV}.html
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml template > result/${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml
+
+
+        if: $DEPLOY_ENV ~= "/.*de-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-sgde-.*/"
+        artifacts:
+          - result/*
+      
+  - prompt:
+      - msg: check
+        detail: |
+          请检查${DEPLOY_ENV}环境是否正常, 并在构建产物中下载
+          ${QCI_JOB_NAME}-${DEPLOY_ENV}-diff.html查看差异是否符合预期
+          ${QCI_JOB_NAME}-${DEPLOY_ENV}.yaml 为完整制品文件
+        to:
+          - $QCI_JOB_ADMIN
+          - gordondeng
+          - yuehuazhang
+          - evanshuang
+          - keeganliu
+        notifications:
+          channel: "ENWECHAT_GROUP;ENWECHAT"
+          enwechat_group: ww1393043705
+          user: $QCI_TRIGGER
+        env: {}
+        if: $AUTO_APPROVE_ALL=="false"
+  - stage: 新阶段
+    tasks:
+      - task: commit callback
+        cmds:
+          - 'curl -v -H "Authorization: Token $CODING_CI_API_TOKEN" http://tencent.coding.oa.com/api/qci/rest-api/pipeline/$QCI_JOB_ID/totalresult/$QCI_BUILD_ID/comment -d "text=\"region=${DEPLOY_ENV//;/ } commit_message=$QCI_COMMIT_MESSAGE\" " -d "text_mode=\"write\" "'
+  - stage: Deploy
+    tasks:
+      - task: sh
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=sh-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*sh-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: gz
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=gz-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*gz-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: bj
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=bj-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*bj-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: nj
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=nj-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*nj-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_general-.*/"
+      - task: cd
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=cd-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*cd-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_general-.*/"
+      - task: sg
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=sg-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*sg-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-sgde-.*/"
+      - task: usw
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=usw-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*usw-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-internation-.*/"
+      - task: use
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=use-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*use-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-internation-.*/"
+      - task: de
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=de-v1
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml apply
+        if: $DEPLOY_ENV ~= "/.*de-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-sgde-.*/" 
+  - stage: Check Workload Status
+    ignore: true
+    tasks:
+      - task: sh
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=sh-v1
+                - export REGION_ENV=sh
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-sh'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=sh'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*sh-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: gz
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=gz-v1
+                - export REGION_ENV=gz
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-gz'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=gz'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*gz-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: bj
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=bj-v1
+                - export REGION_ENV=bj
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-bj'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=bj'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*bj-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_bjshgz-.*/"
+      - task: nj
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=nj-v1
+                - export REGION_ENV=nj
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-nj'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=nj'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*nj-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_general-.*/"
+      - task: cd
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=cd-v1
+                - export REGION_ENV=cd
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-cd'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=cd'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*cd-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-domestic_general-.*/"
+      - task: sg
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=sg-v1
+                - export REGION_ENV=sg
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-sg'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=sg'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*sg-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-sgde-.*/"
+      - task: usw
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=usw-v1
+                - export REGION_ENV=usw
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-usw'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=usw'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*usw-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-internation-.*/"
+      - task: use
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=use-v1
+                - export REGION_ENV=use
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-use'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=use'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*use-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-internation-.*/"
+      - task: de
+        cmds:
+          - plugin: cmds
+            params:
+              cmds:
+                - unset http_proxy; unset https_proxy; unset no_proxy
+                - DEPLOY_ENV=de-v1
+                - export REGION_ENV=de
+                - REGION_ENV=`echo ${DEPLOY_ENV%-*}` SUBREGION_ENV=`echo ${DEPLOY_ENV#*-}` KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}"
+                  helmfile -e ${DEPLOY_ENV}  -f helmfile/helmfile.yaml  list
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} get pods -n ${PRODUCT_NAME}-${REGION_ENV} | grep ${SERVICE_NAME}
+                - KUBECONFIG="${QCI_PHYSICAL_WORKSPACE}/rainbow_dir/${DEPLOY_ENV}" kubectl --kubeconfig=${KUBECONFIG} rollout status deploy/${SERVICE_NAME} -n ${PRODUCT_NAME}-${REGION_ENV} --timeout 600s
+                - sleep 30
+          - plugin: pipeline_start
+            params:
+              envs:
+                - 'clusterNamesOrIDs=caas-de'
+                - operateType=publish
+                - operator=$(echo $QCI_PROMPT_OPERATOR | awk -F ';' '{print $NF}')
+                - >-
+                  appVersion=${SERVICE_NAME}-$(git --no-pager show --quiet
+                  --abbrev=8 --date='format-local:%Y%m%d' --format=%cd-%h)
+                - appName=$SERVICE_NAME
+                - product=$PRODUCT_NAME
+                - 'region=de'
+              pipeline: '450401'
+            label: 变更上报
+        if: $DEPLOY_ENV ~= "/.*de-v1.*|.*-all-*|.*-all_is_deploy-.*|.*-sgde-.*/"
+
+
+
+  #
+
+
+finally:
+  all:
+    cmds:
+    - plugin: message_wework_single
+      params:
+        content: "服务: $SERVICE_NAME $DEPLOY_ENV 发布完成通知\n发起人：${QCI_TRIGGER}\n组件列表： ${SERVICE_NAME}\n部署环境： ${DEPLOY_ENV}\n变更内容： ${CHANGE_DESC}\n流水线详情： ${QCI_JOB_URL}\n部署时间: $(date +\"%Y%m%dT%H:%M:%S\")"
+        to: "$QCI_TRIGGER;"
+        c_type: "text"
+
+worker:
+  language: qci_common
+  label: PUBLIC_IDC
+  tools: []
+code_checkout_type: CHECKOUT_ALL
