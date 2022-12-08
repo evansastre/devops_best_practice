@@ -1,0 +1,7 @@
+apiVersion: v1
+name: gitlabci-generator
+description: A Helm chart for gitlabci-generator
+
+type: application
+version: 0.1.0
+

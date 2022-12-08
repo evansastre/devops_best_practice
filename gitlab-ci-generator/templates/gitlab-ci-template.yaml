@@ -1,0 +1,111 @@
+variables:
+  TF_ROOT: ${CI_PROJECT_DIR}/deploy
+  ENVIRONMENT_NAME: "terraform-infra"
+
+
+before_script:
+  - cd ${TF_ROOT}
+
+stages:
+  - validate
+  - plan
+  - apply
+
+image: xxxxxx.dkr.ecr.ap-northeast-1.amazonaws.com/terragrunt:latest
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS # && $CI_PIPELINE_SOURCE == "push"
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_COMMIT_BRANCH'
+
+
+{{- range .Values.stacks }}
+
+validate_{{ .stack }}:
+  # terragrunt auto run init, so no need to define init stage
+  stage: validate
+  script:
+    # require create this folder before use
+    - mkdir -p ${TF_ROOT}/{{ .stack }}/.terraform.d/plugin-cache
+    # set plugin cache, get rid of repeatedly download plugin (each instance download one if not set)
+    - export TF_PLUGIN_CACHE_DIR=${TF_ROOT}/{{ .stack }}/.terraform.d/plugin-cache
+    # make sure no cache exist
+    - find . -type d -name ".terragrunt-cache" -prune -exec rm -rf {} \;
+    - find .  -type f -name ".terraform.lock.hcl" -delete
+    - mkdir -p ${TF_ROOT}/{{ .stack }}/.terragrunt-cache
+    # init root terragrunt.hcl first to download plugin, avoid concurry download bring issue
+    - terragrunt init --upgrade  --terragrunt-non-interactive --terragrunt-config ${TF_ROOT}/terragrunt.hcl --terragrunt-download-dir ${TF_ROOT}/{{ .stack }}/.terragrunt-cache 
+    - terragrunt run-all validate  --terragrunt-non-interactive --terragrunt-working-dir ${TF_ROOT}/{{ .stack }} --terragrunt-parallelism 10 --terragrunt-download-dir ${TF_ROOT}/{{ .stack }}/.terragrunt-cache --terragrunt-source-update
+ 
+    # --terragrunt-non-interactive  - auto approval
+    # --terragrunt-working-dir      - stack folder as working dir
+    # --terragrunt-parallelism      - make sure not too much resouce requested at same time 
+    # --terragrunt-download-dir     - specify the .terragrunt-cache path
+
+  retry: 2
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - deploy/{{ .stack }}/**/*
+      # should use relative path here
+  artifacts:
+    paths:
+      # pass init generated cache, lock file as artifacts to next stage
+      - ${TF_ROOT}/{{ .stack }}/.terraform.d/plugin-cache
+      - ${TF_ROOT}/{{ .stack }}/.terragrunt-cache
+      - ${TF_ROOT}/{{ .stack }}/**/.terraform.lock.hcl
+  allow_failure: false
+
+{{- end }}
+
+
+{{- range .Values.stacks }}
+
+plan_{{ .stack }}:
+  stage: plan
+  needs:
+    - job: validate_{{ .stack }}
+  dependencies: 
+    - validate_{{ .stack }}
+  script:
+    - export TF_PLUGIN_CACHE_DIR=${TF_ROOT}/{{ .stack }}/.terraform.d/plugin-cache
+    - terragrunt run-all plan --terragrunt-non-interactive --terragrunt-working-dir ${TF_ROOT}/{{ .stack }}  --terragrunt-download-dir ${TF_ROOT}/{{ .stack }}/.terragrunt-cache  --terragrunt-source-update
+    # --terragrunt-parallelism      - not defined here since use artifact,no need download again
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - deploy/{{ .stack }}/**/*
+  allow_failure: false 
+  # Ensure that only one instance of this job can run in case multiple workflows are launched in parallel
+  resource_group: $ENVIRONMENT_NAME  
+
+{{- end }}
+
+
+{{- range .Values.stacks }}
+
+apply_{{ .stack }}:
+  stage: apply
+  needs:
+    - job: plan_{{ .stack }}   
+    - job: validate_{{ .stack }} 
+  # reuse artifact from validate stage
+  dependencies: 
+     - validate_{{ .stack }}
+  script:
+    - terragrunt run-all apply --terragrunt-non-interactive --terragrunt-working-dir ${TF_ROOT}/{{ .stack }}   --terragrunt-download-dir ${TF_ROOT}/{{ .stack }}/.terragrunt-cache --terragrunt-source-update
+    # --terragrunt-parallelism      - not defined here since use artifact,no need download again
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual
+      changes:
+        - deploy/{{ .stack }}/**/*
+  
+  # Ensure that only one instance of this job can run in case multiple workflows are launched in parallel
+  resource_group: $ENVIRONMENT_NAME  
+
+{{- end }}

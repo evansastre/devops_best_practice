@@ -1,0 +1,5 @@
+stacks:
+  - stack: ap-northeast-1
+    describe: 'ap-northeast-1'
+  - stack: ap-southeast-1
+    describe: 'ap-southeast-1'
