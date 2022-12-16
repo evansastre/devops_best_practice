@@ -1,1 +1,1 @@
-# devops_best_practice
+This repository summarized my coding works across DevOps topics. With critical thinking and applying the best DevOps practices in the industry. 
