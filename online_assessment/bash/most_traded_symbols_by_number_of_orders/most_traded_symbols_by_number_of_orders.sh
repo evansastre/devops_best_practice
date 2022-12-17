@@ -1,0 +1,1 @@
+cat logfile.txt | awk -F',' '{print $2}' | sort | uniq -c | awk '{print $2 " " $1}' | sort -nr -k2
