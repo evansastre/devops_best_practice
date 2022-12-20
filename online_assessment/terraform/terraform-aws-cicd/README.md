@@ -30,7 +30,7 @@ helm upgrade --install gitlab gitlab/gitlab --namespace gitlab \
 
 # after run this, the terminal need be open
 # forward service to be accessible from browser
-# minikube service gitlab-webservice-default -n gitlab
+minikube service gitlab-webservice-default -n gitlab
 
 
 # enable ingress
