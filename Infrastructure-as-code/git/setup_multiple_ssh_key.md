@@ -1,6 +1,10 @@
 # example
 
 ```
+# generate sshkey
+ssh-keygen -o -t rsa -C "your@email.com"
+
+
 # vim ~/.ssh/config
 ###
 #github account
@@ -19,5 +23,6 @@ Host gitlab.evansastre.com-evansastre
 # in the specific repository folder
 git remote -v 
 git remote set-url --delete origin [the original one]
+# git remote set-url --add origin  git@github.com-evansastre:myproj/myrepo.git 
 git remote set-url --add origin  git@gitlab.evansastre.com-evansastre:myproj/myrepo.git 
 ```
