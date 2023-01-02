@@ -3,4 +3,3 @@ Node Affinity ensures that pods are hosted on particular nodes. Pod Affinity ens
 
  
  # Argocd rollout
- ss
